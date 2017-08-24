@@ -37,15 +37,16 @@ var _ = Describe("Translate", func() {
 
 		Context("multiple translation files", func() {
 			BeforeEach(func() {
-				language1Translations = "key: field-in-language1"
-				language2Translations = "key: field-in-language2"
+				language1Translations = "key: field-in-language1\nkey1: field1"
+				language2Translations = "key: field-in-language2\nkey2: field2"
 			})
 
-			It("translates based on the loaded file", func() {
+			It("translates with the last loaded file taking precedence", func() {
 				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-				Expect(T("key")).To(Equal("field-in-language1"))
 				Expect(LoadTranslationFile(language2TranslationPath)).To(Succeed())
 				Expect(T("key")).To(Equal("field-in-language2"))
+				Expect(T("key1")).To(Equal("field1"))
+				Expect(T("key2")).To(Equal("field2"))
 			})
 		})
 
@@ -60,67 +61,67 @@ var _ = Describe("Translate", func() {
 			})
 		})
 
-		Context("when the translation file does not exist", func() {
-			It("returns an error", func() {
-				Expect(LoadTranslationFile("some-bad-path")).To(MatchError("failed to read file: some-bad-path"))
+		Context("translation file errors", func() {
+			Context("when the translation file does not exist", func() {
+				It("returns an error", func() {
+					Expect(LoadTranslationFile("some-bad-path")).To(MatchError("failed to read file: some-bad-path"))
+				})
+			})
+
+			Context("when the translation file is not valid YAML", func() {
+				BeforeEach(func() {
+					language1Translations = "some-invalid-yaml"
+				})
+
+				It("returns an error", func() {
+					Expect(LoadTranslationFile(language1TranslationPath)).To(MatchError("failed to parse YAML: some-invalid-yaml"))
+				})
 			})
 		})
 
-		Context("when the translation file is not valid YAML", func() {
-			BeforeEach(func() {
-				language1Translations = "some-invalid-yaml"
+		Context("key errors", func() {
+			Context("when the key does not exit", func() {
+				BeforeEach(func() {
+					language1Translations = "---"
+				})
+
+				It("returns the untranslated key", func() {
+					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+					Expect(T("missingkey")).To(Equal("missingkey"))
+				})
 			})
 
-			It("returns an error", func() {
-				Expect(LoadTranslationFile(language1TranslationPath)).To(MatchError("failed to parse YAML: some-invalid-yaml"))
-			})
-		})
+			Context("when the nested key does not exit", func() {
+				BeforeEach(func() {
+					language1Translations = "nested: {key: some-value}"
+				})
 
-		Context("when the key does not exit", func() {
-			BeforeEach(func() {
-				language1Translations = "---"
-			})
-
-			It("returns an error", func() {
-				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-				_, err := T("missingkey")
-				Expect(err).To(MatchError("could not find key: missingkey"))
-			})
-		})
-
-		Context("when the nested key does not exit", func() {
-			BeforeEach(func() {
-				language1Translations = "nested: {key: some-value}"
+				It("returns the untranslated key", func() {
+					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+					Expect(T("nested.missingkey")).To(Equal("nested.missingkey"))
+				})
 			})
 
-			It("returns an error", func() {
-				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-				_, err := T("nested.missingkey")
-				Expect(err).To(MatchError("could not find key: nested.missingkey"))
-			})
-		})
+			Context("when a value is a string instead of a nested map", func() {
+				BeforeEach(func() {
+					language1Translations = "nested: {key: value}"
+				})
 
-		Context("when a value is a string instead of a nested map", func() {
-			BeforeEach(func() {
-				language1Translations = "nested: {key: value}"
-			})
-
-			It("returns an error", func() {
-				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-				_, err := T("nested.key.otherkey")
-				Expect(err).To(MatchError("found string instead of map for key: nested.key"))
-			})
-		})
-
-		Context("when a value is not a string or map", func() {
-			BeforeEach(func() {
-				language1Translations = "key: [not-a-string-or-map]"
+				It("returns the untranslated key", func() {
+					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+					Expect(T("nested.key.otherkey")).To(Equal("nested.key.otherkey"))
+				})
 			})
 
-			It("returns an error", func() {
-				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-				_, err := T("key")
-				Expect(err).To(MatchError("could not convert value to map for key: key"))
+			Context("when a value is not a string or map", func() {
+				BeforeEach(func() {
+					language1Translations = "key: [not-a-string-or-map]"
+				})
+
+				It("returns the untranslated key", func() {
+					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+					Expect(T("key")).To(Equal("key"))
+				})
 			})
 		})
 	})

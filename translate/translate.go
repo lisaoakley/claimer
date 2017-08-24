@@ -1,10 +1,10 @@
 package translate
 
 import (
-	"io/ioutil"
-	"gopkg.in/yaml.v2"
-	"strings"
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"strings"
 )
 
 var translations map[interface{}]interface{}
@@ -22,31 +22,26 @@ func LoadTranslationFile(path string) error {
 	return nil
 }
 
-func T(yamlPath string) (string, error) {
+func T(yamlPath string) string {
 	splitPath := strings.Split(yamlPath, ".")
-	finalValue := ""
-	m := translations
+	innerTranslations := translations
 	for i, key := range splitPath {
-		value, ok := m[key]
+		value, ok := innerTranslations[key]
 		if !ok {
-			return "", fmt.Errorf("could not find key: %s", strings.Join(splitPath[0:i+1], "."))
+			return yamlPath
 		}
 
 		stringValue, ok := value.(string)
-		if ok {
-			if i != len(splitPath) - 1 {
-				return "", fmt.Errorf("found string instead of map for key: %s", strings.Join(splitPath[0:i+1], "."))
-			}
-			finalValue = stringValue
-			break
+		if ok && i == (len(splitPath)-1) {
+			return stringValue
 		}
 
-		mapValue, ok := m[key].(map[interface{}]interface{})
+		mapValue, ok := innerTranslations[key].(map[interface{}]interface{})
 		if !ok {
-			return "", fmt.Errorf("could not convert value to map for key: %s", strings.Join(splitPath[0:i+1], "."))
+			return yamlPath
 		}
 
-		m = mapValue
+		innerTranslations = mapValue
 	}
-	return finalValue, nil
+	return yamlPath
 }
