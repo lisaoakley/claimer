@@ -44,9 +44,9 @@ var _ = Describe("Translate", func() {
 			It("translates with the last loaded file taking precedence", func() {
 				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
 				Expect(LoadTranslationFile(language2TranslationPath)).To(Succeed())
-				Expect(T("key")).To(Equal("field-in-language2"))
-				Expect(T("key1")).To(Equal("field1"))
-				Expect(T("key2")).To(Equal("field2"))
+				Expect(T("key", nil)).To(Equal("field-in-language2"))
+				Expect(T("key1", nil)).To(Equal("field1"))
+				Expect(T("key2", nil)).To(Equal("field2"))
 			})
 		})
 
@@ -57,7 +57,29 @@ var _ = Describe("Translate", func() {
 
 			It("translates using the nested value", func() {
 				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-				Expect(T("some.nested.key")).To(Equal("some-value"))
+				Expect(T("some.nested.key", nil)).To(Equal("some-value"))
+			})
+		})
+
+		Context("passing variables to translation", func() {
+			BeforeEach(func() {
+				language1Translations = "key: some {{.var1}} interpolated {{.var2}} string"
+			})
+
+			It("interpolates the variables into the translated string", func() {
+				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+				vars := map[string]string{
+					"var1": "value1",
+					"var2": "value2",
+				}
+				Expect(T("key", vars)).To(Equal("some value1 interpolated value2 string"))
+			})
+
+			It("does not interpolate variables that are not passed in", func() {
+				vars := map[string]string{
+					"var2": "value2",
+				}
+				Expect(T("key", vars)).To(Equal("some {{.var1}} interpolated value2 string"))
 			})
 		})
 
@@ -87,7 +109,7 @@ var _ = Describe("Translate", func() {
 
 				It("returns the untranslated key", func() {
 					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-					Expect(T("missingkey")).To(Equal("missingkey"))
+					Expect(T("missingkey", nil)).To(Equal("missingkey"))
 				})
 			})
 
@@ -98,7 +120,7 @@ var _ = Describe("Translate", func() {
 
 				It("returns the untranslated key", func() {
 					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-					Expect(T("nested.missingkey")).To(Equal("nested.missingkey"))
+					Expect(T("nested.missingkey", nil)).To(Equal("nested.missingkey"))
 				})
 			})
 
@@ -109,7 +131,7 @@ var _ = Describe("Translate", func() {
 
 				It("returns the untranslated key", func() {
 					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-					Expect(T("nested.key.otherkey")).To(Equal("nested.key.otherkey"))
+					Expect(T("nested.key.otherkey", nil)).To(Equal("nested.key.otherkey"))
 				})
 			})
 
@@ -120,7 +142,7 @@ var _ = Describe("Translate", func() {
 
 				It("returns the untranslated key", func() {
 					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-					Expect(T("key")).To(Equal("key"))
+					Expect(T("key", nil)).To(Equal("key"))
 				})
 			})
 		})

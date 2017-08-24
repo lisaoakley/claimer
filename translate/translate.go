@@ -22,9 +22,10 @@ func LoadTranslationFile(path string) error {
 	return nil
 }
 
-func T(yamlPath string) string {
+func T(yamlPath string, vars map[string]string) string {
 	splitPath := strings.Split(yamlPath, ".")
 	innerTranslations := translations
+	translatedString := ""
 	for i, key := range splitPath {
 		value, ok := innerTranslations[key]
 		if !ok {
@@ -33,7 +34,8 @@ func T(yamlPath string) string {
 
 		stringValue, ok := value.(string)
 		if ok && i == (len(splitPath)-1) {
-			return stringValue
+			translatedString = stringValue
+			break
 		}
 
 		mapValue, ok := innerTranslations[key].(map[interface{}]interface{})
@@ -43,5 +45,10 @@ func T(yamlPath string) string {
 
 		innerTranslations = mapValue
 	}
-	return yamlPath
+
+	for name, value := range vars {
+		translatedString = strings.Replace(translatedString, fmt.Sprintf("{{.%s}}", name), value, -1)
+	}
+
+	return translatedString
 }
