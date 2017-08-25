@@ -11,39 +11,27 @@ import (
 
 var _ = Describe("Translate", func() {
 	Describe("Translation", func() {
-		var (
-			language1Translations    string
-			language2Translations    string
-			language1TranslationPath string
-			language2TranslationPath string
-		)
-
-		JustBeforeEach(func() {
-			file1, err := ioutil.TempFile("", "claimer-translate")
-			Expect(err).NotTo(HaveOccurred())
-			language1TranslationPath = file1.Name()
-			Expect(ioutil.WriteFile(language1TranslationPath, []byte(language1Translations), 0644)).To(Succeed())
-
-			file2, err := ioutil.TempFile("", "claimer-translate")
-			Expect(err).NotTo(HaveOccurred())
-			language2TranslationPath = file2.Name()
-			Expect(ioutil.WriteFile(language2TranslationPath, []byte(language2Translations), 0644)).To(Succeed())
-		})
+		var translationsPath string
 
 		AfterEach(func() {
-			os.RemoveAll(language1TranslationPath)
-			os.RemoveAll(language2TranslationPath)
+			os.RemoveAll(translationsPath)
 		})
 
 		Context("multiple translation files", func() {
+			var otherTranslationsPath string
+
 			BeforeEach(func() {
-				language1Translations = "key: field-in-language1\nkey1: field1"
-				language2Translations = "key: field-in-language2\nkey2: field2"
+				translationsPath = writeTranslationFile("key: field-in-language1\nkey1: field1")
+				otherTranslationsPath = writeTranslationFile("key: field-in-language2\nkey2: field2")
+				Expect(LoadTranslationFile(translationsPath)).To(Succeed())
+				Expect(LoadTranslationFile(otherTranslationsPath)).To(Succeed())
+			})
+
+			AfterEach(func() {
+				os.RemoveAll(otherTranslationsPath)
 			})
 
 			It("translates with the last loaded file taking precedence", func() {
-				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
-				Expect(LoadTranslationFile(language2TranslationPath)).To(Succeed())
 				Expect(T("key", nil)).To(Equal("field-in-language2"))
 				Expect(T("key1", nil)).To(Equal("field1"))
 				Expect(T("key2", nil)).To(Equal("field2"))
@@ -52,22 +40,22 @@ var _ = Describe("Translate", func() {
 
 		Context("nested keys", func() {
 			BeforeEach(func() {
-				language1Translations = "some: {nested: {key: some-value}}"
+				translationsPath = writeTranslationFile("some: {nested: {key: some-value}}")
+				Expect(LoadTranslationFile(translationsPath)).To(Succeed())
 			})
 
 			It("translates using the nested value", func() {
-				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
 				Expect(T("some.nested.key", nil)).To(Equal("some-value"))
 			})
 		})
 
 		Context("passing variables to translation", func() {
 			BeforeEach(func() {
-				language1Translations = "key: some {{.var1}} interpolated {{.var2}} string"
+				translationsPath = writeTranslationFile("key: some {{.var1}} interpolated {{.var2}} string")
+				Expect(LoadTranslationFile(translationsPath)).To(Succeed())
 			})
 
 			It("interpolates the variables into the translated string", func() {
-				Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
 				vars := map[string]string{
 					"var1": "value1",
 					"var2": "value2",
@@ -92,11 +80,11 @@ var _ = Describe("Translate", func() {
 
 			Context("when the translation file is not valid YAML", func() {
 				BeforeEach(func() {
-					language1Translations = "some-invalid-yaml"
+					translationsPath = writeTranslationFile("some-invalid-yaml")
 				})
 
 				It("returns an error", func() {
-					Expect(LoadTranslationFile(language1TranslationPath)).To(MatchError("failed to parse YAML: some-invalid-yaml"))
+					Expect(LoadTranslationFile(translationsPath)).To(MatchError("failed to parse YAML: some-invalid-yaml"))
 				})
 			})
 		})
@@ -104,47 +92,54 @@ var _ = Describe("Translate", func() {
 		Context("key errors", func() {
 			Context("when the key does not exit", func() {
 				BeforeEach(func() {
-					language1Translations = "---"
+					translationsPath = writeTranslationFile("---")
 				})
 
 				It("returns the untranslated key", func() {
-					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+					Expect(LoadTranslationFile(translationsPath)).To(Succeed())
 					Expect(T("missingkey", nil)).To(Equal("missingkey"))
 				})
 			})
 
 			Context("when the nested key does not exit", func() {
 				BeforeEach(func() {
-					language1Translations = "nested: {key: some-value}"
+					translationsPath = writeTranslationFile("nested: {key: some-value}")
 				})
 
 				It("returns the untranslated key", func() {
-					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+					Expect(LoadTranslationFile(translationsPath)).To(Succeed())
 					Expect(T("nested.missingkey", nil)).To(Equal("nested.missingkey"))
 				})
 			})
 
 			Context("when a value is a string instead of a nested map", func() {
 				BeforeEach(func() {
-					language1Translations = "nested: {key: value}"
+					translationsPath = writeTranslationFile("nested: {key: value}")
 				})
 
 				It("returns the untranslated key", func() {
-					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+					Expect(LoadTranslationFile(translationsPath)).To(Succeed())
 					Expect(T("nested.key.otherkey", nil)).To(Equal("nested.key.otherkey"))
 				})
 			})
 
 			Context("when a value is not a string or map", func() {
 				BeforeEach(func() {
-					language1Translations = "key: [not-a-string-or-map]"
+					translationsPath = writeTranslationFile("key: [not-a-string-or-map]")
 				})
 
 				It("returns the untranslated key", func() {
-					Expect(LoadTranslationFile(language1TranslationPath)).To(Succeed())
+					Expect(LoadTranslationFile(translationsPath)).To(Succeed())
 					Expect(T("key", nil)).To(Equal("key"))
 				})
 			})
 		})
 	})
 })
+
+func writeTranslationFile(translations string) string {
+	file, err := ioutil.TempFile("", "claimer-translate")
+	Expect(err).NotTo(HaveOccurred())
+	Expect(ioutil.WriteFile(file.Name(), []byte(translations), 0644)).To(Succeed())
+	return file.Name()
+}
