@@ -21,8 +21,16 @@ var _ = Describe("Translate", func() {
 			var otherTranslationsPath string
 
 			BeforeEach(func() {
-				translationsPath = writeTranslationFile("key: field-in-language1\nkey1: field1")
-				otherTranslationsPath = writeTranslationFile("key: field-in-language2\nkey2: field2")
+				translationsPath = writeTranslationFile(`---
+key1: val1
+parent:
+  child1: child-val1
+  child2: child-val2`)
+				otherTranslationsPath = writeTranslationFile(`---
+key2: val2
+parent:
+  child2: other-child-val2
+  child3: other-child-val3`)
 				Expect(LoadTranslationFile(translationsPath)).To(Succeed())
 				Expect(LoadTranslationFile(otherTranslationsPath)).To(Succeed())
 			})
@@ -31,21 +39,12 @@ var _ = Describe("Translate", func() {
 				os.RemoveAll(otherTranslationsPath)
 			})
 
-			It("translates with the last loaded file taking precedence", func() {
-				Expect(T("key", nil)).To(Equal("field-in-language2"))
-				Expect(T("key1", nil)).To(Equal("field1"))
-				Expect(T("key2", nil)).To(Equal("field2"))
-			})
-		})
-
-		Context("nested keys", func() {
-			BeforeEach(func() {
-				translationsPath = writeTranslationFile("some: {nested: {key: some-value}}")
-				Expect(LoadTranslationFile(translationsPath)).To(Succeed())
-			})
-
-			It("translates using the nested value", func() {
-				Expect(T("some.nested.key", nil)).To(Equal("some-value"))
+			It("translates using only the last loaded file", func() {
+				Expect(T("key1", nil)).To(Equal("key1"))
+				Expect(T("key2", nil)).To(Equal("val2"))
+				Expect(T("parent.child1", nil)).To(Equal("parent.child1"))
+				Expect(T("parent.child2", nil)).To(Equal("other-child-val2"))
+				Expect(T("parent.child3", nil)).To(Equal("other-child-val3"))
 			})
 		})
 

@@ -10,6 +10,8 @@ import (
 var translations map[interface{}]interface{}
 
 func LoadTranslationFile(path string) error {
+	translations = nil
+
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %s", path)
