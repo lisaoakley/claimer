@@ -1,5 +1,23 @@
 package commands
 
+type Messages struct {
+	pool_does_not_exist_claim   string
+	pool_not_specified_claim    string
+	pool_already_claimed_claim  string
+	pool_does_not_exist_destroy string
+	pool_not_specified_destroy  string
+	pool_does_not_exist_owner   string
+	pool_is_not_claimed_owner   string
+	pool_is_not_claimed_release string
+	success_owner               string
+	success_status              string
+	success_claim               string
+	success_create              string
+	success_help                string
+	success_destroy             string
+	success_release             string
+}
+
 //failures
 const pool_does_not_exist_claim = "%s does not exist"
 const pool_not_specified_claim = "no pool specified"

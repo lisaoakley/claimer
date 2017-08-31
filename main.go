@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/mdelillo/claimer/bot"
 	"github.com/mdelillo/claimer/bot/commands"
@@ -11,8 +14,6 @@ import (
 	"github.com/mdelillo/claimer/locker"
 	"github.com/mdelillo/claimer/slack"
 	"github.com/mdelillo/claimer/slack/requests"
-	"io/ioutil"
-	"os"
 )
 
 func main() {
